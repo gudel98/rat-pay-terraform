@@ -61,6 +61,8 @@ docker --version || { echo "ERROR: Docker installation failed"; exit 1; }
 kubectl version --client || { echo "ERROR: kubectl installation failed"; exit 1; }
 minikube version || { echo "ERROR: Minikube installation failed"; exit 1; }
 
+
+
 # Create Minikube startup script
 cat > /home/ubuntu/start-minikube.sh <<'SCRIPT'
 #!/bin/bash
@@ -77,8 +79,6 @@ minikube addons enable ingress
 minikube addons enable metrics-server
 
 echo "Forwarding ports..."
-sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
-sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
 sudo apt install iptables-persistent -y
@@ -101,8 +101,6 @@ WantedBy=multi-user.target
 PORT_SCRIPT
 sudo systemctl daemon-reload
 sudo systemctl enable port-forward
-sudo systemctl start port-forward
-sudo systemctl status port-forward
 
 echo ""
 echo "✅ Minikube started successfully!"
@@ -117,25 +115,40 @@ SCRIPT
 chmod +x /home/ubuntu/start-minikube.sh
 chown ubuntu:ubuntu /home/ubuntu/start-minikube.sh
 
+
+
+# Create cluster startup script
 cat > /home/ubuntu/start-cluster.sh <<'SCRIPT'
 #!/bin/bash
 set -e
 
-# NEEDS TO BE FIXED, CHECK THIS SCRIPT ON EC2
+echo "Disabling port-forwarding..."
+sudo systemctl stop port-forward
+if sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080 2>/dev/null; then
+    sudo iptables -t nat -D PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+fi
+if sudo iptables -t nat -C PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443 2>/dev/null; then
+    sudo iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+fi
 
-git clone https://github.com/gudel98/rat-pay.git
-sleep 3
-echo "-> rat_pay"
-cd ~/rat_pay/
-echo "Uploading secrets..."
-cp ~/secrets.yaml ~/rat_pay/k8s/secrets.yaml
-rm ~/rat_pay/k8s/secrets.yaml.example
+cd rat-pay/
 echo "Building rat_pay_app image..."
 docker build -t rat_pay_app:latest .
 echo "Loading image into minikube..."
 minikube image load rat_pay_app:latest
 echo "Applying k8s manifests..."
 kubectl apply -R -f k8s/
+
+echo "Enabling port-forwarding..."
+if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080 2>/dev/null; then
+    sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+fi
+if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443 2>/dev/null; then
+    sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+fi
+sudo iptables -t nat -L PREROUTING --line-numbers
+sudo systemctl start port-forward
+sudo systemctl status port-forward
 
 echo ""
 echo "✅ RatPay cluster started successfully!"
@@ -146,6 +159,67 @@ SCRIPT
 chmod +x /home/ubuntu/start-cluster.sh
 chown ubuntu:ubuntu /home/ubuntu/start-cluster.sh
 
+
+
+# Create script for application redeployment
+cat > /home/ubuntu/redeploy-app.sh <<'SCRIPT'
+#!/bin/bash
+set -e
+
+echo "Disabling port-forwarding..."
+sudo systemctl stop port-forward
+if sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080 2>/dev/null; then
+    sudo iptables -t nat -D PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+fi
+if sudo iptables -t nat -C PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443 2>/dev/null; then
+    sudo iptables -t nat -D PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+fi
+
+echo "Removing an existing applciation pod..."
+kubectl scale deployment rat-pay-app --replicas=0
+echo "Deleting current rat_pay_app docker image..."
+minikube ssh
+docker rmi rat_pay_app
+exit
+docker rmi rat_pay_app:latest
+rm -rf rat-pay-old
+mv rat-pay rat-pay-old
+echo "Downloading new application version from GitHub..."
+git clone https://github.com/gudel98/rat-pay.git
+echo "Synchronizing secrets..."
+cp rat-pay-old/k8s/secrets.yaml rat-pay/k8s/secrets.yaml
+rm rat-pay/k8s/secrets.yaml.example
+cd rat-pay/
+echo "Building rat_pay_app image..."
+docker build -t rat_pay_app:latest .
+echo "Loading image into minikube..."
+minikube image load rat_pay_app:latest
+echo "Restaring rat_pay_app pod..."
+kubectl scale deployment rat-pay-app --replicas=1
+kubectl rollout restart deployment rat-pay-app
+kubectl get pods -A
+
+echo "Enabling port-forwarding..."
+if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080 2>/dev/null; then
+    sudo iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to-port 8080
+fi
+if ! sudo iptables -t nat -C PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443 2>/dev/null; then
+    sudo iptables -t nat -A PREROUTING -p tcp --dport 443 -j REDIRECT --to-port 8443
+fi
+sudo iptables -t nat -L PREROUTING --line-numbers
+sudo systemctl start port-forward
+sudo systemctl status port-forward
+
+echo ""
+echo "✅ RatPay application updated successfully!"
+echo ""
+echo "https://rat-pay.online/up"
+SCRIPT
+
+chmod +x /home/ubuntu/redeploy-app.sh
+chown ubuntu:ubuntu /home/ubuntu/redeploy-app.sh
+
+
+
 # Log completion
 echo "Minikube setup script completed at $(date)" >> /var/log/minikube-setup.log
-

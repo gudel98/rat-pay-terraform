@@ -188,11 +188,9 @@ resource "null_resource" "minikube_setup" {
   depends_on = [aws_eip.minikube]
 }
 
-resource "null_resource" "secrets" {
-  # Only upload if secrets.yaml doesn't exist
+resource "null_resource" "check_ratpay_exists" {
   triggers = {
-    instance_id = aws_instance.rat-pay-minikube.id
-    script_hash = data.local_file.secrets.content_base64sha256
+    always = timestamp()
   }
 
   connection {
@@ -202,18 +200,55 @@ resource "null_resource" "secrets" {
     private_key = tls_private_key.ec2_key.private_key_pem
   }
 
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -d /home/ubuntu/rat-pay ]; then",
+      "  echo 'rat-pay already exists → skip clone'; exit 0;",
+      "else",
+      "  echo 'rat-pay missing → clone required'; exit 1;",
+      "fi"
+    ]
+
+    on_failure = continue
+  }
+
+  depends_on = [aws_eip.minikube]
+}
+
+resource "null_resource" "setup_ratpay" {
+  triggers = {
+    create_trigger = null_resource.check_ratpay_exists.id
+  }
+
+  connection {
+    type        = "ssh"
+    host        = aws_eip.minikube.public_ip
+    user        = "ubuntu"
+    private_key = tls_private_key.ec2_key.private_key_pem
+  }
+
+  # Clone repo only if missing
+  provisioner "remote-exec" {
+    inline = [
+      "if [ ! -d /home/ubuntu/rat-pay ]; then",
+      "  git clone https://github.com/gudel98/rat-pay.git /home/ubuntu/rat-pay;",
+      "fi"
+    ]
+  }
+
   provisioner "file" {
     source      = "${path.module}/secrets.yaml"
-    destination = "/home/ubuntu/secrets.yaml"
+    destination = "/home/ubuntu/rat-pay/k8s/secrets.yaml"
   }
 
   provisioner "remote-exec" {
     inline = [
-      "chown ubuntu:ubuntu /home/ubuntu/secrets.yaml"
+      "sudo chown ubuntu:ubuntu /home/ubuntu/rat-pay/k8s/secrets.yaml",
+      "rm /home/ubuntu/rat-pay/k8s/secrets.yaml.example"
     ]
   }
 
-  depends_on = [aws_eip.minikube]
+  depends_on = [null_resource.check_ratpay_exists]
 }
 
 output "instance_id" {
