@@ -1,4 +1,3 @@
-# Provider Configuration
 provider "aws" {
   region = var.aws_region
 
@@ -10,7 +9,6 @@ provider "aws" {
   }
 }
 
-# Variables
 variable "aws_region" {
   description = "AWS region"
   type        = string
@@ -32,16 +30,14 @@ variable "key_pair_name" {
 variable "allowed_ssh_cidr" {
   description = "CIDR block allowed for SSH access"
   type        = string
-  default     = "192.168.0.1"
+  default     = "83.175.182.175/32"
 }
 
-# Generate private key
 resource "tls_private_key" "ec2_key" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-# Create AWS Key Pair
 resource "aws_key_pair" "ec2_key" {
   key_name   = var.key_pair_name
   public_key = tls_private_key.ec2_key.public_key_openssh
@@ -51,7 +47,6 @@ resource "aws_key_pair" "ec2_key" {
   }
 }
 
-# Save private key to file
 resource "local_file" "private_key" {
   content         = tls_private_key.ec2_key.private_key_pem
   filename        = "${var.key_pair_name}.pem"
@@ -74,12 +69,10 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-# Get default VPC
 data "aws_vpc" "default" {
   default = true
 }
 
-# Get default subnets
 data "aws_subnets" "default" {
   filter {
     name   = "vpc-id"
@@ -87,13 +80,11 @@ data "aws_subnets" "default" {
   }
 }
 
-# Security Group for EC2
 resource "aws_security_group" "minikube" {
   name        = "rat-pay-minikube-sg"
   description = "Security group for Minikube EC2 instance"
   vpc_id      = data.aws_vpc.default.id
 
-  # SSH access
   ingress {
     description = "SSH"
     from_port   = 22
@@ -102,7 +93,6 @@ resource "aws_security_group" "minikube" {
     cidr_blocks = [var.allowed_ssh_cidr]
   }
 
-  # HTTP access
   ingress {
     description = "HTTP"
     from_port   = 80
@@ -111,7 +101,6 @@ resource "aws_security_group" "minikube" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # HTTPS access
   ingress {
     description = "HTTPS"
     from_port   = 443
@@ -133,12 +122,14 @@ resource "aws_security_group" "minikube" {
   }
 }
 
-# Read user data script
 data "local_file" "minikube_setup" {
   filename = "${path.module}/minikube-setup.sh"
 }
 
-# EC2 Instance for Minikube
+data "local_file" "secrets" {
+  filename = "${path.module}/secrets.yaml"
+}
+
 resource "aws_instance" "rat-pay-minikube" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
@@ -146,10 +137,9 @@ resource "aws_instance" "rat-pay-minikube" {
   key_name               = aws_key_pair.ec2_key.key_name
   user_data              = data.local_file.minikube_setup.content
 
-  # Root volume configuration
   root_block_device {
     volume_type = "gp3"
-    volume_size = 20 # 20GB is sufficient for Ubuntu + Minikube + apps
+    volume_size = 20
     encrypted   = false
   }
 
@@ -158,7 +148,6 @@ resource "aws_instance" "rat-pay-minikube" {
   }
 }
 
-# Elastic IP for static public IP
 resource "aws_eip" "minikube" {
   domain    = "vpc"
   instance  = aws_instance.rat-pay-minikube.id
@@ -170,7 +159,7 @@ resource "aws_eip" "minikube" {
 
 # Run setup script on the instance (only if not already run)
 resource "null_resource" "minikube_setup" {
-  # Only run if the minikube-setup.sh script doesn't exist
+  # Only run if the minikube-setup.sh script changed
   triggers = {
     instance_id = aws_instance.rat-pay-minikube.id
     script_hash = data.local_file.minikube_setup.content_base64sha256
@@ -199,7 +188,34 @@ resource "null_resource" "minikube_setup" {
   depends_on = [aws_eip.minikube]
 }
 
-# Outputs
+resource "null_resource" "secrets" {
+  # Only upload if secrets.yaml doesn't exist
+  triggers = {
+    instance_id = aws_instance.rat-pay-minikube.id
+    script_hash = data.local_file.secrets.content_base64sha256
+  }
+
+  connection {
+    type        = "ssh"
+    host        = aws_eip.minikube.public_ip
+    user        = "ubuntu"
+    private_key = tls_private_key.ec2_key.private_key_pem
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/secrets.yaml"
+    destination = "/home/ubuntu/secrets.yaml"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chown ubuntu:ubuntu /home/ubuntu/secrets.yaml"
+    ]
+  }
+
+  depends_on = [aws_eip.minikube]
+}
+
 output "instance_id" {
   description = "ID of the EC2 instance"
   value       = aws_instance.rat-pay-minikube.id
