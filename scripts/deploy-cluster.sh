@@ -15,7 +15,7 @@ if [ -d "rat-pay" ]; then
     rm -rf rat-pay-old
     mv rat-pay rat-pay-old
     
-    git clone https://github.com/gudel98/rat-pay.git
+    git clone ${repository_url}
     
     echo "Synchronizing secrets..."
     if [ -f "rat-pay-old/k8s/secrets.yaml" ]; then
@@ -25,7 +25,7 @@ if [ -d "rat-pay" ]; then
     fi
 else
     echo "rat-pay directory not found. Cloning fresh..."
-    git clone https://github.com/gudel98/rat-pay.git
+    git clone ${repository_url}
     # Note: If this is a fresh clone and no backup exists, 
     # secrets.yaml must be provided manually or via Terraform provisioning
 fi

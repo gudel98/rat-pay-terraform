@@ -65,7 +65,7 @@ resource "null_resource" "upload_deploy_cluster" {
   }
 
   provisioner "file" {
-    source      = "${path.module}/scripts/deploy-cluster.sh"
+    content     = templatefile("${path.module}/scripts/deploy-cluster.sh", { repository_url = var.repository_url })
     destination = "/home/ubuntu/deploy-cluster.sh"
   }
 
@@ -128,7 +128,7 @@ resource "null_resource" "setup_ratpay" {
   provisioner "remote-exec" {
     inline = [
       "if [ ! -d /home/ubuntu/rat-pay ]; then",
-      "  git clone https://github.com/gudel98/rat-pay.git /home/ubuntu/rat-pay;",
+      "  git clone ${var.repository_url} /home/ubuntu/rat-pay;",
       "fi"
     ]
   }
