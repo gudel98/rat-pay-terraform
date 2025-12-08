@@ -1,28 +1,18 @@
-# RatPay Infrastructure (Terraform)
+# RatPay Infrastructure
 
 This project uses Terraform to provision an AWS EC2 instance running a single-node Kubernetes cluster (Minikube) for the RatPay application.
 
-## 🚀 Project Structure
-
-- **`main.tf`**: Core infrastructure definitions (EC2, Security Groups, Key Pair).
-- **`provisioning.tf`**: Server provisioning logic (Minikube installation, repo cloning, script uploads).
-- **`variables.tf`**: Configuration variables.
-- **`minikube-setup.sh`**: Script executed by Terraform to install Docker, Kubectl, and Minikube.
-- **`scripts/`**: Helper scripts uploaded to the server:
-  - `start-minikube.sh`: Starts the Minikube cluster (useful after a reboot).
-  - `deploy-cluster.sh`: The **master script** for deploying code updates, building images, and managing port forwarding.
-
 ---
 
-## 🛠️ Prerequisites
+## Prerequisites
 
-1.  **Terraform** installed (v1.0+).
+1.  **Terraform** installed (v1.14+).
 2.  **AWS CLI** configured with appropriate credentials.
-3.  A `secrets.yaml` file present in this directory (will be uploaded to the server).
+3.  `secrets.yaml` file present in this directory (will be uploaded to the server).
 
 ---
 
-## ⚡ Installation & First Run
+## Installation & First Run
 
 1.  **Initialize Terraform:**
     ```bash
@@ -58,7 +48,7 @@ This project uses Terraform to provision an AWS EC2 instance running a single-no
 
 ---
 
-## 🔄 Redeploying Application Code
+## Redeploying Application Code
 
 To update the application with the latest code from GitHub:
 
@@ -81,13 +71,6 @@ To update the application with the latest code from GitHub:
     *   Re-enables port forwarding (mapping port 80/443 → Ingress).
 
     > **Note:** Port-forwarding is essential as minikube cannot automatically map host ports to nginx-ingress.
-
----
-
-## 🛡️ Secrets Management
-
-*   **Local:** Keep your `secrets.yaml` in this Terraform directory.
-*   **Updates:** If you change `secrets.yaml` locally, simply run `terraform apply` again to update it on the server.
 
 ---
 
