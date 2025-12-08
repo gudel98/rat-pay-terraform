@@ -7,6 +7,8 @@ set -e
 # Update system
 sudo apt-get update -y
 sudo apt-get upgrade -y
+# Restart services that need it
+sudo needrestart -r a
 
 # Install basic tools
 sudo apt-get install -y \
