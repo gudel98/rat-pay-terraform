@@ -9,6 +9,11 @@ This project uses Terraform to provision an AWS EC2 instance running a single-no
 1.  **Terraform** installed (v1.14+).
 2.  **AWS CLI** configured with appropriate credentials.
 3.  `secrets.yaml` file present in this directory (will be uploaded to the server).
+4.  **Configure your IP:**
+    Create a `terraform.tfvars` file (this file is git-ignored) to secure SSH access:
+    ```hcl
+    allowed_ssh_cidr = "YOUR.IP.ADDRESS/32"
+    ```
 
 ---
 

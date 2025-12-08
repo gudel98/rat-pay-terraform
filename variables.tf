@@ -17,9 +17,8 @@ variable "key_pair_name" {
 }
 
 variable "allowed_ssh_cidr" {
-  description = "CIDR block allowed for SSH access"
+  description = "CIDR block allowed for SSH access (e.g. your.ip.add.ress/32)"
   type        = string
-  default     = "83.175.182.175/32"
 }
 
 variable "repository_url" {
