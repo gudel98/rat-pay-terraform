@@ -12,20 +12,16 @@ fi
 
 echo "Updating application code..."
 if [ -d "rat-pay" ]; then
-    echo "Existing rat-pay directory found. Backing up and updating..."
-    # Remove old backup if it exists
     rm -rf rat-pay-old
-    # Backup current
     mv rat-pay rat-pay-old
     
-    echo "Downloading new application version from GitHub..."
     git clone https://github.com/gudel98/rat-pay.git
     
     echo "Synchronizing secrets..."
     if [ -f "rat-pay-old/k8s/secrets.yaml" ]; then
         cp rat-pay-old/k8s/secrets.yaml rat-pay/k8s/secrets.yaml
     else
-        echo "WARNING: secrets.yaml not found in backup!"
+        echo "WARNING: secrets.yaml not found!"
     fi
 else
     echo "rat-pay directory not found. Cloning fresh..."
@@ -44,18 +40,19 @@ echo "Building rat_pay_app image..."
 docker build -t rat_pay_app:latest .
 
 echo "Cleaning up old images..."
-# Remove the image from minikube's docker daemon if it exists to ensure we load the new one
-minikube ssh -- docker rmi rat_pay_app:latest || true
+minikube ssh -- docker rmi -f rat_pay_app:latest || true
 
-echo "Loading image into minikube..."
+echo "Loading new image into minikube..."
 minikube image load rat_pay_app:latest
 
 echo "Applying k8s manifests..."
 kubectl apply -R -f k8s/
 
 echo "Restaring rat_pay_app pod..."
-# Ensure the deployment picks up the change (useful if image tag is 'latest')
 kubectl rollout restart deployment rat-pay-app
+kubectl wait --for=condition=available --timeout=300s deployment/kafka || echo "Kafka deployment not found or timed out"
+kubectl wait --for=condition=available --timeout=300s deployment/postgres || echo "Postgres deployment not found or timed out"
+kubectl wait --for=condition=available --timeout=300s deployment/rat-pay-app || echo "App deployment not found or timed out"
 kubectl get pods -A
 
 echo "Enabling port-forwarding..."

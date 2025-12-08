@@ -44,11 +44,13 @@ resource "null_resource" "upload_start_minikube" {
   }
 
   provisioner "remote-exec" {
-    inline = ["chmod +x /home/ubuntu/start-minikube.sh"]
+    inline = [
+      "sed -i 's/\r$//' /home/ubuntu/start-minikube.sh",
+      "chmod +x /home/ubuntu/start-minikube.sh"
+    ]
   }
 }
 
-# Upload deploy-cluster.sh (runs if updated OR if rat-pay check runs)
 resource "null_resource" "upload_deploy_cluster" {
   triggers = {
     script_hash   = filemd5("${path.module}/scripts/deploy-cluster.sh")
@@ -68,11 +70,13 @@ resource "null_resource" "upload_deploy_cluster" {
   }
 
   provisioner "remote-exec" {
-    inline = ["chmod +x /home/ubuntu/deploy-cluster.sh"]
+    inline = [
+      "sed -i 's/\r$//' /home/ubuntu/deploy-cluster.sh",
+      "chmod +x /home/ubuntu/deploy-cluster.sh"
+    ]
   }
 }
 
-# Run setup script on the instance (runs if updated OR if rat-pay check runs)
 resource "null_resource" "minikube_setup" {
   triggers = {
     instance_id   = aws_instance.rat-pay-minikube.id
@@ -94,6 +98,7 @@ resource "null_resource" "minikube_setup" {
 
   provisioner "remote-exec" {
     inline = [
+      "sed -i 's/\r$//' /tmp/minikube-setup.sh",
       "chmod +x /tmp/minikube-setup.sh",
       "sudo /tmp/minikube-setup.sh",
       "rm /tmp/minikube-setup.sh"
@@ -136,7 +141,7 @@ resource "null_resource" "setup_ratpay" {
   provisioner "remote-exec" {
     inline = [
       "sudo chown ubuntu:ubuntu /home/ubuntu/rat-pay/k8s/secrets.yaml",
-      "rm /home/ubuntu/rat-pay/k8s/secrets.yaml.example"
+      "rm -f /home/ubuntu/rat-pay/k8s/secrets.yaml.example"
     ]
   }
 

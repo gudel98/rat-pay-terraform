@@ -16,6 +16,7 @@ echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo deb
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
 sudo apt install iptables-persistent -y
 sudo netfilter-persistent save
+
 sudo tee /etc/systemd/system/port-forward.service > /dev/null <<'PORT_SCRIPT'
 [Unit]
 Description=Port-forward ingress-nginx-controller

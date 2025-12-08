@@ -18,7 +18,7 @@ variable "aws_region" {
 variable "instance_type" {
   description = "EC2 instance type for Minikube"
   type        = string
-  default     = "t3.medium" # Minikube needs at least 2 CPU and 2GB RAM
+  default     = "t3.medium" # Minikube requires min 2 CPU and 2GB RAM
 }
 
 variable "key_pair_name" {
