@@ -20,14 +20,20 @@ if [ -d "rat-pay" ]; then
     echo "Synchronizing secrets..."
     if [ -f "rat-pay-old/k8s/secrets.yaml" ]; then
         cp rat-pay-old/k8s/secrets.yaml rat-pay/k8s/secrets.yaml
+    elif [ -f "/home/ubuntu/secrets.yaml" ]; then
+        cp /home/ubuntu/secrets.yaml rat-pay/k8s/secrets.yaml
     else
-        echo "WARNING: secrets.yaml not found!"
+        echo "WARNING: secrets.yaml not found in backup!"
     fi
 else
     echo "rat-pay directory not found. Cloning fresh..."
     git clone ${repository_url}
-    # Note: If this is a fresh clone and no backup exists, 
-    # secrets.yaml must be provided manually or via Terraform provisioning
+
+    if [ -f "/home/ubuntu/secrets.yaml" ]; then
+        cp /home/ubuntu/secrets.yaml rat-pay/k8s/secrets.yaml
+    else
+        echo "WARNING: secrets.yaml not found in home directory!"
+    fi
 fi
 
 if [ -f "rat-pay/k8s/secrets.yaml.example" ]; then

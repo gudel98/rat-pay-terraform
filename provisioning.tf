@@ -69,6 +69,11 @@ resource "null_resource" "upload_deploy_cluster" {
     destination = "/home/ubuntu/deploy-cluster.sh"
   }
 
+  provisioner "file" {
+    source      = "${path.module}/secrets.yaml"
+    destination = "/home/ubuntu/secrets.yaml"
+  }
+
   provisioner "remote-exec" {
     inline = [
       "sed -i 's/\r$//' /home/ubuntu/deploy-cluster.sh",
