@@ -4,11 +4,10 @@
 
 set -e
 
-# Update system
 sudo apt-get update -y
 sudo apt-get upgrade -y
+sudo needrestart -r a
 
-# Install basic tools
 sudo apt-get install -y \
     curl \
     wget \
@@ -19,11 +18,9 @@ sudo apt-get install -y \
     jq \
     conntrack
 
-# Install Docker (idempotent - skip if already installed)
 if ! command -v docker &> /dev/null; then
   sudo apt-get install -y ca-certificates curl gnupg lsb-release
   sudo install -m 0755 -d /etc/apt/keyrings
-  # Remove existing keyring if it exists to avoid prompts
   sudo rm -f /etc/apt/keyrings/docker.gpg
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   sudo chmod a+r /etc/apt/keyrings/docker.gpg
@@ -37,7 +34,6 @@ else
   echo "Docker is already installed, skipping..."
 fi
 
-# Install kubectl (idempotent - skip if already installed)
 if ! command -v kubectl &> /dev/null; then
   curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
   sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
@@ -46,7 +42,6 @@ else
   echo "kubectl is already installed, skipping..."
 fi
 
-# Install Minikube (idempotent - skip if already installed)
 if ! command -v minikube &> /dev/null; then
   curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
   sudo install minikube-linux-amd64 /usr/local/bin/minikube
@@ -55,46 +50,9 @@ else
   echo "Minikube is already installed, skipping..."
 fi
 
-# Verify installations
 echo "Verifying installations..."
 docker --version || { echo "ERROR: Docker installation failed"; exit 1; }
 kubectl version --client || { echo "ERROR: kubectl installation failed"; exit 1; }
 minikube version || { echo "ERROR: Minikube installation failed"; exit 1; }
 
-# Create Minikube startup script
-cat > /home/ubuntu/start-minikube.sh <<'SCRIPT'
-#!/bin/bash
-set -e
-
-echo "Starting Minikube..."
-minikube start --driver=docker --memory=2048 --cpus=2
-
-echo "Configuring kubectl to use Minikube context..."
-minikube kubectl -- config use-context minikube
-
-echo "Enabling Minikube addons..."
-minikube addons enable ingress
-minikube addons enable metrics-server
-
-echo "Installing Cert Manager..."
-minikube kubectl -- apply -f https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml
-minikube kubectl -- apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.13.2/deploy/static/provider/cloud/deploy.yaml
-minikube kubectl -- expose deployment ingress-nginx-controller \
-  --name=ingress-nginx-controller --port=80 --type=LoadBalancer -n ingress-nginx
-
-echo ""
-echo "✅ Minikube started successfully!"
-echo ""
-echo "Useful commands:"
-echo "  kubectl get nodes          - Check cluster status"
-echo "  kubectl get pods -A        - List all pods"
-echo "  minikube dashboard          - Open Kubernetes dashboard"
-echo "  minikube service <name>     - Get service URL"
-SCRIPT
-
-chmod +x /home/ubuntu/start-minikube.sh
-chown ubuntu:ubuntu /home/ubuntu/start-minikube.sh
-
-# Log completion
 echo "Minikube setup script completed at $(date)" >> /var/log/minikube-setup.log
-

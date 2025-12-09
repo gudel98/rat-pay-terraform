@@ -8,8 +8,6 @@
 *.pem
 *.key
 *-key.pem
-
-# Public keys
 *.pub
 
 # Terraform variables (may contain secrets)
@@ -26,3 +24,5 @@ override.tf.json
 *_override.tf
 *_override.tf.json
 
+.instruction
+secrets.yaml
