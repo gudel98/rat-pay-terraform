@@ -116,8 +116,8 @@ resource "aws_instance" "rat-pay-minikube" {
 }
 
 resource "aws_eip" "minikube" {
-  domain    = "vpc"
-  instance  = aws_instance.rat-pay-minikube.id
+  domain   = "vpc"
+  instance = aws_instance.rat-pay-minikube.id
 
   tags = {
     Name = "rat-pay-minikube-eip"
