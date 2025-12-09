@@ -12,7 +12,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: ./rat-pay-terraform
+        working-directory: rat-pay-terraform
 
     steps:
       - name: Checkout code
