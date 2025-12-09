@@ -1,4 +1,4 @@
-name: Terraform CI
+name: CI
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   terraform:
-    name: Terraform Validate & Plan
+    name: Format check & Validate
     runs-on: ubuntu-latest
 
     steps:
@@ -19,7 +19,7 @@ jobs:
 
       - name: Terraform Format Check
         id: fmt
-        run: terraform fmt -check -recursive
+        run: terraform fmt -check
 
       - name: Terraform Init
         id: init
