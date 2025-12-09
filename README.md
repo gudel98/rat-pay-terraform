@@ -26,7 +26,6 @@ This project uses Terraform to provision an AWS EC2 instance running a single-no
 
 2.  **Review and Apply:**
     ```bash
-    terraform validate
     terraform plan
     terraform apply
     ```
