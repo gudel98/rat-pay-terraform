@@ -10,10 +10,6 @@ jobs:
     name: Format check & Validate
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: rat-pay-terraform
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
