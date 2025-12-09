@@ -1,0 +1,30 @@
+name: Terraform CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  terraform:
+    name: Terraform Validate & Plan
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
