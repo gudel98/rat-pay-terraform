@@ -52,13 +52,23 @@ echo "Loading new image into minikube..."
 minikube image load rat_pay_app:latest
 
 echo "Applying k8s manifests..."
-kubectl apply -R -f k8s/
+kubectl apply -f k8s/postgres.yaml
+kubectl apply -f k8s/redis.yaml
+kubectl apply -f k8s/kafka.yaml
+kubectl apply -f k8s/rat_pay_config.yaml
+kubectl apply -f k8s/karafka-consumer.yaml
+kubectl apply -f k8s/sidekiq-worker.yaml
+kubectl apply -f k8s/rat_pay_app.yaml
+kubectl apply -f k8s/rat_pay_ingress.yaml
 
 echo "Restaring rat_pay_app pod..."
 kubectl rollout restart deployment rat-pay-app
-kubectl wait --for=condition=available --timeout=300s deployment/kafka || echo "Kafka deployment not found or timed out"
-kubectl wait --for=condition=available --timeout=300s deployment/postgres || echo "Postgres deployment not found or timed out"
-kubectl wait --for=condition=available --timeout=300s deployment/rat-pay-app || echo "App deployment not found or timed out"
+kubectl wait --for=condition=available --timeout=30s deployment/kafka || echo "Kafka deployment not found or timed out"
+kubectl wait --for=condition=available --timeout=30s deployment/postgres || echo "Postgres deployment not found or timed out"
+kubectl wait --for=condition=available --timeout=30s deployment/redis || echo "Redis deployment not found or timed out"
+kubectl wait --for=condition=available --timeout=30s deployment/karafka-consumer || echo "Karafka consumer deployment not found or timed out"
+kubectl wait --for=condition=available --timeout=30s deployment/sidekiq-worker || echo "Sidekiq worker deployment not found or timed out"
+kubectl wait --for=condition=available --timeout=30s deployment/rat-pay-app || echo "App deployment not found or timed out"
 kubectl get pods -A
 
 echo "Enabling port-forwarding..."
