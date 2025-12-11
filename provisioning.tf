@@ -51,6 +51,32 @@ resource "null_resource" "upload_start_minikube" {
   }
 }
 
+resource "null_resource" "upload_stop_minikube" {
+  triggers = {
+    script_hash   = filemd5("${path.module}/scripts/stop-minikube.sh")
+    check_trigger = null_resource.check_ratpay_exists.id
+  }
+
+  connection {
+    type        = "ssh"
+    host        = aws_eip.minikube.public_ip
+    user        = "ubuntu"
+    private_key = tls_private_key.ec2_key.private_key_pem
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/scripts/stop-minikube.sh"
+    destination = "/home/ubuntu/stop-minikube.sh"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "sed -i 's/\r$//' /home/ubuntu/stop-minikube.sh",
+      "chmod +x /home/ubuntu/stop-minikube.sh"
+    ]
+  }
+}
+
 resource "null_resource" "upload_deploy_cluster" {
   triggers = {
     script_hash   = filemd5("${path.module}/scripts/deploy-cluster.sh")
@@ -113,6 +139,7 @@ resource "null_resource" "minikube_setup" {
   depends_on = [
     aws_eip.minikube,
     null_resource.upload_start_minikube,
+    null_resource.upload_stop_minikube,
     null_resource.upload_deploy_cluster
   ]
 }
