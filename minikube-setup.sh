@@ -3,10 +3,28 @@
 # This runs once when the instance is first created
 
 set -e
+export DEBIAN_FRONTEND=noninteractive
 
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo needrestart -r a
+
+# Configure needrestart to be non-interactive and auto-restart services
+sudo sed -i 's/#$nrconf{restart} = '"'"'i'"'"';/$nrconf{restart} = '"'"'a'"'"';/g' /etc/needrestart/needrestart.conf
+sudo sed -i 's/#$nrconf{kernelhints} = -1;/$nrconf{kernelhints} = -1;/g' /etc/needrestart/needrestart.conf
+
+# Check if a reboot is required due to kernel updates
+if [ -f /var/run/reboot-required ]; then
+    echo "Reboot required by system updates. Scheduling reboot..."
+    # We can't reboot immediately in this script as it might break the terraform run if it expects ssh to stay up
+    # However, if this is user-data (cloud-init), it runs on boot.
+    # If run via SSH from terraform, a reboot will kill the connection.
+    # Best practice for terraform remote-exec: avoid rebooting inside the script if possible, or handle it carefully.
+    
+    # For now, let's just log it. The user sees the message.
+    echo "WARNING: Kernel update pending. You may need to reboot the instance manually for changes to take effect."
+else
+    echo "No immediate reboot required."
+fi
 
 sudo apt-get install -y \
     curl \
