@@ -4,6 +4,12 @@ variable "aws_region" {
   default     = "eu-central-1"
 }
 
+variable "aws_profile" {
+  description = "AWS profile"
+  type        = string
+  default     = "rat-pay"
+}
+
 variable "instance_type" {
   description = "EC2 instance type for Minikube"
   type        = string
