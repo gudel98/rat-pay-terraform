@@ -180,6 +180,7 @@ resource "null_resource" "setup_ratpay" {
   depends_on = [null_resource.check_ratpay_exists]
 }
 
+# Runs only if some of pentest scripts have been changed
 resource "null_resource" "setup_pentest" {
   triggers = {
     instance_id  = aws_instance.pentest.id
@@ -193,10 +194,13 @@ resource "null_resource" "setup_pentest" {
     private_key = tls_private_key.ec2_key.private_key_pem
   }
 
-  # Upload Private Key for accessing Minikube from Pentest
-  provisioner "file" {
-    content     = tls_private_key.ec2_key.private_key_pem
-    destination = "/home/ubuntu/rat-pay.pem"
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -d /home/ubuntu/pentest ]; then",
+      "  mv /home/ubuntu/pentest /home/ubuntu/pentest.old",
+      "  rm -rf /home/ubuntu/pentest",
+      "fi"
+    ]
   }
 
   provisioner "file" {
@@ -204,11 +208,17 @@ resource "null_resource" "setup_pentest" {
     destination = "/home/ubuntu/pentest"
   }
 
+  # Upload Private Key for accessing Minikube from Pentest
+  provisioner "file" {
+    content     = tls_private_key.ec2_key.private_key_pem
+    destination = "/home/ubuntu/pentest/rat-pay.pem"
+  }
+
   provisioner "remote-exec" {
     inline = [
-      "chmod 400 /home/ubuntu/rat-pay.pem",
+      "chmod 400 /home/ubuntu/pentest/rat-pay.pem",
       "chmod +x /home/ubuntu/pentest/*.sh",
-      "sudo apt-get update && sudo apt-get install -y nmap"
+      "mkdir /home/ubuntu/pentest/reports/"
     ]
   }
 
