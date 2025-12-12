@@ -56,10 +56,45 @@ data "aws_subnets" "default" {
   }
 }
 
+
+resource "aws_security_group" "pentest" {
+  name        = "rat-pay-pentest-sg"
+  description = "Security group for Pentest EC2 instance"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = [var.allowed_ssh_cidr]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "rat-pay-pentest-sg"
+  }
+}
+
 resource "aws_security_group" "minikube" {
   name        = "rat-pay-minikube-sg"
   description = "Security group for Minikube EC2 instance"
   vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description     = "All traffic from Pentest"
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    security_groups = [aws_security_group.pentest.id]
+  }
 
   ingress {
     description = "SSH"
@@ -106,12 +141,30 @@ resource "aws_instance" "rat-pay-minikube" {
 
   root_block_device {
     volume_type = "gp3"
-    volume_size = 20
+    volume_size = 16
     encrypted   = false
   }
 
   tags = {
     Name = "rat-pay-minikube"
+  }
+}
+
+resource "aws_instance" "pentest" {
+  ami                    = data.aws_ami.ubuntu.id
+  instance_type          = "t3.micro"
+  vpc_security_group_ids = [aws_security_group.pentest.id]
+  key_name               = aws_key_pair.ec2_key.key_name
+  subnet_id              = aws_instance.rat-pay-minikube.subnet_id
+
+  root_block_device {
+    volume_type = "gp2"
+    volume_size = 8
+    encrypted   = false
+  }
+
+  tags = {
+    Name = "rat-pay-pentest"
   }
 }
 
@@ -148,4 +201,14 @@ output "private_key_filename" {
   description = "Filename of the generated private key"
   value       = local_file.private_key.filename
   sensitive   = false
+}
+
+output "pentest_public_ip" {
+  description = "Public IP of the Pentest instance"
+  value       = aws_instance.pentest.public_ip
+}
+
+output "pentest_ssh_command" {
+  description = "SSH command to connect to Pentest instance"
+  value       = "ssh -i ${var.key_pair_name}.pem ubuntu@${aws_instance.pentest.public_ip}"
 }

@@ -179,3 +179,38 @@ resource "null_resource" "setup_ratpay" {
 
   depends_on = [null_resource.check_ratpay_exists]
 }
+
+resource "null_resource" "setup_pentest" {
+  triggers = {
+    instance_id  = aws_instance.pentest.id
+    scripts_hash = sha1(join("", [for f in fileset("${path.module}/pentest", "*") : filesha1("${path.module}/pentest/${f}")]))
+  }
+
+  connection {
+    type        = "ssh"
+    host        = aws_instance.pentest.public_ip
+    user        = "ubuntu"
+    private_key = tls_private_key.ec2_key.private_key_pem
+  }
+
+  # Upload Private Key for accessing Minikube from Pentest
+  provisioner "file" {
+    content     = tls_private_key.ec2_key.private_key_pem
+    destination = "/home/ubuntu/rat-pay.pem"
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/pentest"
+    destination = "/home/ubuntu/pentest"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod 400 /home/ubuntu/rat-pay.pem",
+      "chmod +x /home/ubuntu/pentest/*.sh",
+      "sudo apt-get update && sudo apt-get install -y nmap"
+    ]
+  }
+
+  depends_on = [aws_instance.pentest]
+}
