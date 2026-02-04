@@ -52,6 +52,7 @@ echo "Loading new image into minikube..."
 minikube image load rat_pay_app:latest
 
 echo "Applying k8s manifests..."
+kubectl apply -f k8s/secrets.yaml
 kubectl apply -f k8s/postgres.yaml
 kubectl apply -f k8s/redis.yaml
 kubectl apply -f k8s/kafka.yaml

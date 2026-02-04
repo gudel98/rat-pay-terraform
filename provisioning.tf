@@ -179,3 +179,48 @@ resource "null_resource" "setup_ratpay" {
 
   depends_on = [null_resource.check_ratpay_exists]
 }
+
+# Runs only if some of pentest scripts have been changed
+resource "null_resource" "setup_pentest" {
+  triggers = {
+    instance_id  = aws_instance.pentest.id
+    scripts_hash = sha1(join("", [for f in fileset("${path.module}/pentest", "*") : filesha1("${path.module}/pentest/${f}")]))
+  }
+
+  connection {
+    type        = "ssh"
+    host        = aws_instance.pentest.public_ip
+    user        = "ubuntu"
+    private_key = tls_private_key.ec2_key.private_key_pem
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "if [ -d /home/ubuntu/pentest ]; then",
+      "  mv /home/ubuntu/pentest /home/ubuntu/pentest.old",
+      "  rm -rf /home/ubuntu/pentest",
+      "fi"
+    ]
+  }
+
+  provisioner "file" {
+    source      = "${path.module}/pentest"
+    destination = "/home/ubuntu/pentest"
+  }
+
+  # Upload Private Key for accessing Minikube from Pentest
+  provisioner "file" {
+    content     = tls_private_key.ec2_key.private_key_pem
+    destination = "/home/ubuntu/pentest/rat-pay.pem"
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "chmod 400 /home/ubuntu/pentest/rat-pay.pem",
+      "chmod +x /home/ubuntu/pentest/*.sh",
+      "mkdir /home/ubuntu/pentest/reports/"
+    ]
+  }
+
+  depends_on = [aws_instance.pentest]
+}
