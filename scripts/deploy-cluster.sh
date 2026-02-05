@@ -63,6 +63,7 @@ kubectl apply -f k8s/rat_pay_app.yaml
 kubectl apply -f k8s/rat_pay_ingress.yaml
 kubectl apply -f k8s/prometheus.yaml
 kubectl apply -f k8s/grafana.yaml
+kubectl apply -f k8s/grafana-ingress.yaml
 
 echo "Restaring rat_pay_app pod..."
 kubectl rollout restart deployment rat-pay-app
