@@ -43,7 +43,7 @@ fi
 cd rat-pay/
 
 echo "Building rat_pay_app image..."
-docker build -t rat_pay_app:latest .
+docker build --no-cache -t rat_pay_app:latest .
 
 echo "Cleaning up old images..."
 minikube ssh -- docker rmi -f rat_pay_app:latest || true
@@ -63,7 +63,7 @@ kubectl apply -f k8s/rat_pay_app.yaml
 kubectl apply -f k8s/rat_pay_ingress.yaml
 kubectl apply -f k8s/prometheus.yaml
 kubectl apply -f k8s/grafana.yaml
-kubectl apply -f k8s/grafana-ingress.yaml
+kubectl apply -f k8s/grafana_ingress.yaml
 
 echo "Restaring rat_pay_app pod..."
 kubectl rollout restart deployment rat-pay-app
