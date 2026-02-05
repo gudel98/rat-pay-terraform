@@ -79,3 +79,5 @@ To update the application with the latest code from GitHub:
 ---
 
 ## 🐀 https://rat-pay.online
+
+## Monitoring (Grafana + Prometheus): http://grafana.rat-pay.online
